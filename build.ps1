@@ -6,5 +6,9 @@ $libs = foreach ($f in 'pizzip.min.js','docxtemplater.js','xlsx.full.min.js') {
   "<script>`n$js`n</script>"
 }
 $html = $html.Replace('<!--LIBS-->', ($libs -join "`n"))
-[IO.File]::WriteAllText("$root\Genera Attestati.html", $html, (New-Object Text.UTF8Encoding($false)))
-"Creato: $root\Genera Attestati.html"
+$utf8 = New-Object Text.UTF8Encoding($false)
+# "Genera Attestati.html" per l'uso in locale, index.html per GitHub Pages (stesso contenuto)
+foreach ($nome in 'Genera Attestati.html', 'index.html') {
+  [IO.File]::WriteAllText("$root\$nome", $html, $utf8)
+  "Creato: $root\$nome"
+}

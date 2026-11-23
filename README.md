@@ -4,6 +4,8 @@ Crea in un colpo solo un attestato Word (.docx) per ogni persona di un elenco Ex
 
 Funziona in **Chrome o Edge**, **senza installare nulla**, offline: nessun dato viene inviato su internet.
 
+Se non vuoi scaricarla **[apri l'applicazione](https://adurante92.github.io/generatore-attestati/)** (Nota: una volta aperta, anche la pagina pubblicata funziona offline)
+
 ## Come si usa
 
 1. Scarica il progetto (**Code → Download ZIP**) e scompattalo.

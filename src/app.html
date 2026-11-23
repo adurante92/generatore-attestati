@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generatore Attestati</title>
+<style>
+  :root { --blu:#1f5fbf; --blu-scuro:#164a96; --verde:#1d8a4a; --rosso:#c0392b; --giallo:#b7791f;
+          --bg:#f3f5f9; --card:#fff; --bordo:#d5dbe6; --testo:#1c2430; --grigio:#6b7686; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--testo); font:17px/1.45 "Segoe UI",system-ui,sans-serif; }
+  header { background:var(--blu); color:#fff; padding:20px 24px; }
+  header h1 { margin:0; font-size:26px; }
+  header p { margin:4px 0 0; opacity:.9; }
+  main { max-width:820px; margin:24px auto 60px; padding:0 16px; }
+  .step { background:var(--card); border:1px solid var(--bordo); border-radius:12px; padding:18px 20px; margin-bottom:16px; }
+  .step.off { opacity:.5; pointer-events:none; }
+  .step h2 { margin:0 0 4px; font-size:20px; display:flex; align-items:center; gap:10px; }
+  .num { background:var(--blu); color:#fff; width:30px; height:30px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:16px; flex:none; }
+  .step.done .num { background:var(--verde); }
+  .hint { color:var(--grigio); margin:0 0 12px; font-size:15px; }
+  .drop { border:2px dashed var(--bordo); border-radius:10px; padding:18px; text-align:center; cursor:pointer; background:#fafbfd; transition:.15s; }
+  .drop:hover, .drop.over { border-color:var(--blu); background:#eef4fd; }
+  .drop b { color:var(--blu); }
+  .file-ok { margin-top:10px; color:var(--verde); font-weight:600; word-break:break-all; }
+  button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:11px 20px; background:var(--blu); color:#fff; font-weight:600; }
+  button:hover { background:var(--blu-scuro); }
+  button:disabled { background:#a9b4c6; cursor:not-allowed; }
+  button.big { font-size:21px; padding:16px 30px; width:100%; background:var(--verde); }
+  button.big:hover { background:#166f3b; }
+  button.big:disabled { background:#a9b4c6; }
+  .tags { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+  .tag { padding:3px 10px; border-radius:20px; font-size:14px; font-family:Consolas,monospace; border:1px solid; }
+  .tag.ok { background:#e7f6ed; border-color:#9fd5b5; color:#14683a; }
+  .tag.ko { background:#fdeaea; border-color:#eba6a0; color:#9b2c20; }
+  .tag.un { background:#f1f3f7; border-color:var(--bordo); color:var(--grigio); }
+  .msg { padding:10px 14px; border-radius:8px; margin:10px 0 0; font-size:16px; }
+  .msg.err { background:#fdeaea; color:#9b2c20; }
+  .msg.warn { background:#fff6e0; color:#7a5513; }
+  .msg.ok { background:#e7f6ed; color:#14683a; }
+  .checks { display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:6px; }
+  .checks label { cursor:pointer; }
+  .small { font-size:14px; color:var(--grigio); }
+  select { font:inherit; padding:6px; }
+  progress { width:100%; height:18px; margin-top:12px; }
+  table.prev { border-collapse:collapse; margin-top:10px; font-size:14px; width:100%; display:block; overflow-x:auto; }
+  table.prev td, table.prev th { border:1px solid var(--bordo); padding:4px 8px; white-space:nowrap; text-align:left; }
+  table.prev th { background:#f1f3f7; }
+  .path { background:#f1f3f7; border-radius:6px; padding:6px 10px; margin-top:10px; word-break:break-all; }
+  noscript { display:block; padding:20px; background:#fdeaea; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Generatore Attestati</h1>
+  <p>Crea un attestato Word per ogni persona dell'elenco Excel, in un colpo solo.</p>
+</header>
+<main>
+
+  <div class="step" id="s1">
+    <h2><span class="num">1</span> Modello Word dell'attestato</h2>
+    <p class="hint">Il file .docx con i segnaposto tra parentesi graffe, ad esempio <b>{NOME}</b>, <b>{COGNOME}</b>, <b>{CODICE_FISCALE}</b>.</p>
+    <div class="drop" id="drop1">Trascina qui il file Word oppure <b>clicca per sceglierlo</b></div>
+    <input type="file" id="file1" accept=".docx" hidden>
+    <div id="info1"></div>
+  </div>
+
+  <div class="step off" id="s2">
+    <h2><span class="num">2</span> Elenco Excel delle persone</h2>
+    <p class="hint">Una persona per riga. La prima riga contiene le intestazioni, uguali ai segnaposto del modello (senza parentesi).</p>
+    <div class="drop" id="drop2">Trascina qui il file Excel oppure <b>clicca per sceglierlo</b></div>
+    <input type="file" id="file2" accept=".xlsx,.xlsm,.xls,.csv" hidden>
+    <div id="info2"></div>
+  </div>
+
+  <div class="step off" id="s3">
+    <h2><span class="num">3</span> Dove salvare gli attestati</h2>
+    <p class="hint">Scegli la cartella in cui verranno creati i file (consigliato: la stessa cartella del file Excel).</p>
+    <button id="btnDir">Scegli la cartella…</button>
+    <div id="info3"></div>
+  </div>
+
+  <div class="step off" id="s4">
+    <h2><span class="num">4</span> Nome dei file</h2>
+    <p class="hint">Scrivi il nome come vuoi, usando testo libero e i campi tra graffe, ad esempio <b>Azienda-attestato-{NOME} {COGNOME}</b>. Clicca su un campo per inserirlo.</p>
+    <input type="text" id="nameTpl" style="width:100%;font:inherit;padding:9px 10px;border:1px solid var(--bordo);border-radius:8px">
+    <div class="tags" id="nameCols"></div>
+    <div class="small" id="namePrev" style="margin-top:4px"></div>
+  </div>
+
+  <div class="step off" id="s5">
+    <button class="big" id="btnGo" disabled>Genera gli attestati</button>
+    <progress id="prog" value="0" max="1" hidden></progress>
+    <div id="result"></div>
+  </div>
+
+</main>
+<footer style="text-align:center;color:var(--grigio);font-size:14px;padding:0 16px 30px">
+  Creato da Alberto Durante · <a href="https://github.com/adurante92/generatore-attestati" target="_blank" rel="noopener" style="color:var(--blu)">Codice sorgente e segnalazioni su GitHub</a>
+</footer>
+<noscript>Per usare questo programma serve JavaScript attivo (Chrome o Edge).</noscript>
+
+<!--LIBS-->
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => String(s).trim().replace(/\s+/g, ' ').toUpperCase();
+
+const state = { tplBuf:null, tplName:'', tags:[], headers:[], rows:[], dir:null };
+
+/* ---------- utilità interfaccia ---------- */
+function setupDrop(dropEl, inputEl, handler) {
+  dropEl.addEventListener('click', () => inputEl.click());
+  inputEl.addEventListener('change', () => { if (inputEl.files[0]) handler(inputEl.files[0]); inputEl.value=''; });
+  ['dragenter','dragover'].forEach(ev => dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev => dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.remove('over'); }));
+  dropEl.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handler(f); });
+}
+function stepState(id, {on, done}) {
+  const el = $(id);
+  if (on !== undefined) el.classList.toggle('off', !on);
+  if (done !== undefined) el.classList.toggle('done', done);
+}
+
+/* ---------- 1. Modello Word ---------- */
+function estraiSegnaposto(zip) {
+  const tags = new Set();
+  Object.keys(zip.files).filter(n => /^word\/(document|header\d*|footer\d*)\.xml$/.test(n)).forEach(n => {
+    const testo = zip.file(n).asText().replace(/<\/w:p>/g, '\n').replace(/<[^>]+>/g, '');
+    for (const m of testo.matchAll(/\{([^{}\n]+)\}/g)) {
+      const t = m[1].trim();
+      if (t && !/^[#\/\^@%]/.test(t)) tags.add(t);
+    }
+  });
+  return [...tags];
+}
+
+async function caricaModello(file) {
+  const box = $('info1');
+  if (!/\.docx$/i.test(file.name)) {
+    box.innerHTML = '<div class="msg err">Questo non è un file Word .docx. Se il modello è un vecchio .doc, aprilo in Word e salvalo come “Documento di Word (.docx)”.</div>';
+    return;
+  }
+  try {
+    const buf = await file.arrayBuffer();
+    const zip = new PizZip(buf);
+    if (!zip.file('word/document.xml')) throw new Error('non è un documento Word valido');
+    state.tplBuf = buf; state.tplName = file.name;
+    state.tags = estraiSegnaposto(zip);
+    let h = `<div class="file-ok">✔ ${esc(file.name)}</div>`;
+    if (state.tags.length) {
+      h += '<p class="small" style="margin:8px 0 0">Segnaposto trovati nel modello:</p><div class="tags">' +
+           state.tags.map(t => `<span class="tag un">{${esc(t)}}</span>`).join('') + '</div>';
+    } else {
+      h += '<div class="msg warn">Nel modello non ho trovato nessun segnaposto tra parentesi graffe, ad esempio {NOME}. Gli attestati verrebbero tutti uguali.</div>';
+    }
+    box.innerHTML = h;
+    stepState('s1', {done:true}); stepState('s2', {on:true});
+    verifica();
+  } catch (e) {
+    state.tplBuf = null;
+    box.innerHTML = `<div class="msg err">Impossibile leggere il file Word (${esc(e.message)}).</div>`;
+    stepState('s1', {done:false});
+  }
+}
+
+/* ---------- 2. Excel ---------- */
+function fmtCella(v) {
+  if (v instanceof Date) {
+    const d = new Date(Math.round(v.getTime() / 60000) * 60000);
+    const p = n => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
+  }
+  if (v === null || v === undefined) return '';
+  return String(v).trim();
+}
+
+let workbook = null;
+async function caricaExcel(file) {
+  const box = $('info2');
+  try {
+    const buf = await file.arrayBuffer();
+    workbook = XLSX.read(buf, {type:'array', cellDates:true});
+    state.excelName = file.name;
+    state.sheetIdx = 0;
+    leggiFoglio();
+    state.excelOk = true;
+    stepState('s2', {done:true});
+  } catch (e) {
+    workbook = null; state.rows = []; state.headers = [];
+    box.innerHTML = `<div class="msg err">Impossibile leggere il file Excel (${esc(e.message)}).</div>`;
+    stepState('s2', {done:false});
+  }
+  verifica();
+}
+
+function leggiFoglio() {
+  const box = $('info2');
+  const ws = workbook.Sheets[workbook.SheetNames[state.sheetIdx]];
+  const grezzo = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
+  const intest = (grezzo[0] || []).map(fmtCella);
+  // colonne con intestazione non vuota
+  const colIdx = intest.map((h,i) => h ? i : -1).filter(i => i >= 0);
+  state.headers = colIdx.map(i => intest[i]);
+  state.rows = grezzo.slice(1)
+    .map(r => colIdx.map(i => fmtCella(r[i])))
+    .filter(r => r.some(c => c !== ''));
+  let h = `<div class="file-ok">✔ ${esc(state.excelName)} — ${state.rows.length} persone, ${state.headers.length} colonne</div>`;
+  if (workbook.SheetNames.length > 1) {
+    h += '<p class="small" style="margin:8px 0 0">Foglio da usare: <select id="selSheet">' +
+      workbook.SheetNames.map((n,i) => `<option value="${i}" ${i===state.sheetIdx?'selected':''}>${esc(n)}</option>`).join('') + '</select></p>';
+  }
+  h += '<div id="verifica"></div>';
+  if (state.rows.length) {
+    h += '<table class="prev"><tr>' + state.headers.map(x => `<th>${esc(x)}</th>`).join('') + '</tr>' +
+      state.rows.slice(0,3).map(r => '<tr>' + r.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>').join('') + '</table>' +
+      (state.rows.length > 3 ? `<p class="small">…prime 3 righe su ${state.rows.length}</p>` : '');
+  }
+  box.innerHTML = h;
+  const sel = $('selSheet');
+  if (sel) sel.addEventListener('change', () => { state.sheetIdx = +sel.value; leggiFoglio(); verifica(); });
+}
+
+/* confronto segnaposto <-> intestazioni */
+function verifica() {
+  const cont = $('verifica');
+  const haExcel = workbook && state.headers.length;
+  if (haExcel && state.tplBuf) {
+    const hn = new Set(state.headers.map(norm));
+    const tn = new Set(state.tags.map(norm));
+    const mancanti = state.tags.filter(t => !hn.has(norm(t)));
+    const inutili = state.headers.filter(h => !tn.has(norm(h)));
+    let h = '<div class="tags">' +
+      state.tags.map(t => `<span class="tag ${hn.has(norm(t))?'ok':'ko'}">{${esc(t)}}</span>`).join('') +
+      inutili.map(t => `<span class="tag un">${esc(t)} (non usata)</span>`).join('') + '</div>';
+    if (mancanti.length) {
+      h += `<div class="msg err">Nel modello ${mancanti.length>1?'ci sono i segnaposto':'c\'è il segnaposto'} ${mancanti.map(t=>'<b>{'+esc(t)+'}</b>').join(', ')} ma in Excel non esiste una colonna con ${mancanti.length>1?'quel nome':'quel nome'}. Resterebbero vuoti: correggi il nome della colonna (o del segnaposto) e ricarica il file.</div>`;
+    } else if (state.tags.length) {
+      h += '<div class="msg ok">Tutto combacia: ogni segnaposto ha la sua colonna.</div>';
+    }
+    if (cont) cont.innerHTML = h;
+  } else if (cont) {
+    cont.innerHTML = '';
+  }
+  // passi successivi
+  const pronto = haExcel && state.rows.length && state.tplBuf;
+  stepState('s3', {on: !!pronto});
+  stepState('s4', {on: !!pronto});
+  stepState('s5', {on: !!pronto});
+  if (pronto) costruisciNomi();
+  aggiornaGo();
+}
+
+/* ---------- 3. Cartella ---------- */
+const haPicker = typeof window.showDirectoryPicker === 'function';
+if (!haPicker) {
+  document.addEventListener('DOMContentLoaded', () => {
+    $('btnDir').hidden = true;
+    $('info3').innerHTML = '<div class="msg warn">Questo browser non permette di scegliere la cartella. Gli attestati verranno scaricati in un unico file ZIP nella cartella Download. Per salvarli direttamente in una cartella usa Chrome o Edge aggiornati.</div>';
+  });
+}
+$('btnDir').addEventListener('click', async () => {
+  try {
+    const dir = await window.showDirectoryPicker({mode:'readwrite', id:'attestati', startIn:'documents'});
+    state.dir = dir;
+    $('info3').innerHTML = `<div class="path">📁 <b>${esc(dir.name)}</b></div>`;
+    stepState('s3', {done:true});
+    aggiornaGo();
+  } catch (e) { /* annullato */ }
+});
+
+/* ---------- 4. Nome file ---------- */
+function costruisciNomi() {
+  const box = $('nameCols');
+  if (box.dataset.sig === state.headers.join('|')) { anteprimaNome(); return; }
+  box.dataset.sig = state.headers.join('|');
+  // proposta iniziale: {COGNOME} {NOME} se esistono, altrimenti la prima colonna
+  const trova = rx => state.headers.find(h => rx.test(norm(h)));
+  const prop = [trova(/^COGNOME/), trova(/^NOME/)].filter(Boolean);
+  $('nameTpl').value = (prop.length ? prop : [state.headers[0]]).map(h => `{${h}}`).join(' ');
+  box.innerHTML = state.headers.map(h => `<span class="tag ok" style="cursor:pointer" data-h="${esc(h)}">+ ${esc(h)}</span>`).join('');
+  box.querySelectorAll('span').forEach(sp => sp.addEventListener('click', () => {
+    const inp = $('nameTpl'), t = `{${sp.dataset.h}}`;
+    const a = inp.selectionStart ?? inp.value.length, b = inp.selectionEnd ?? a;
+    inp.value = inp.value.slice(0, a) + t + inp.value.slice(b);
+    inp.focus(); inp.setSelectionRange(a + t.length, a + t.length);
+    anteprimaNome(); aggiornaGo();
+  }));
+  anteprimaNome();
+}
+$('nameTpl').addEventListener('input', () => { anteprimaNome(); aggiornaGo(); });
+
+function campiSconosciuti() {
+  const hn = new Set(state.headers.map(norm));
+  return [...$('nameTpl').value.matchAll(/\{([^{}]+)\}/g)].map(m => m[1].trim()).filter(t => !hn.has(norm(t)));
+}
+function nomeFile(riga, idx) {
+  const mappa = new Map(state.headers.map((h,i) => [norm(h), riga[i]]));
+  let base = $('nameTpl').value.replace(/\{([^{}]+)\}/g, (_, t) => mappa.get(norm(t)) ?? '')
+    .replace(/\.docx\s*$/i, '')
+    .replace(/[\\/:*?"<>|\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return base || `Attestato ${idx+1}`;
+}
+function anteprimaNome() {
+  const el = $('namePrev');
+  if (!state.rows.length) { el.textContent = ''; return; }
+  let h = 'Esempio: <b>' + esc(nomeFile(state.rows[0], 0)) + '.docx</b>';
+  const sc = campiSconosciuti();
+  if (sc.length) h += `<div class="msg warn">Non esiste in Excel la colonna: ${sc.map(s => '{'+esc(s)+'}').join(', ')} (verrà lasciata vuota).</div>`;
+  el.innerHTML = h;
+}
+
+/* ---------- 5. Generazione ---------- */
+function aggiornaGo() {
+  $('btnGo').disabled = !(state.tplBuf && state.rows.length && $('nameTpl').value.trim() && (state.dir || !haPicker));
+}
+
+function messaggioErrore(e) {
+  if (e && e.properties && Array.isArray(e.properties.errors) && e.properties.errors.length) {
+    const righe = e.properties.errors.slice(0,5).map(x => {
+      const p = x.properties || {};
+      return esc(p.explanation || x.message || 'errore nel modello');
+    });
+    return 'Il modello Word contiene un errore nei segnaposto (parentesi { } non chiuse o in più?):<br>• ' + righe.join('<br>• ');
+  }
+  return esc(e && e.message ? e.message : String(e));
+}
+
+function creaDoc(dati) {
+  const zip = new PizZip(state.tplBuf);
+  const doc = new docxtemplater(zip, {
+    paragraphLoop:true, linebreaks:true,
+    parser: tag => ({ get: scope => { const v = scope[norm(tag)]; return v === undefined ? '' : v; } }),
+    nullGetter: () => ''
+  });
+  doc.render(dati);
+  return doc.getZip().generate({type:'blob', compression:'DEFLATE',
+    mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+
+async function nomeLibero(dir, base) {
+  let nome = base + '.docx', n = 2;
+  for (;;) {
+    try { await dir.getFileHandle(nome); nome = `${base} (${n++}).docx`; }
+    catch (e) { return nome; }
+  }
+}
+
+$('btnGo').addEventListener('click', async () => {
+  const btn = $('btnGo'), prog = $('prog'), out = $('result');
+  btn.disabled = true; out.innerHTML = ''; prog.hidden = false; prog.max = state.rows.length; prog.value = 0;
+  const usati = new Map(), errori = [], creati = [];
+  const zipOut = haPicker ? null : new PizZip();
+  try {
+    for (let i = 0; i < state.rows.length; i++) {
+      const riga = state.rows[i];
+      const dati = {}; state.headers.forEach((h,k) => { dati[norm(h)] = riga[k]; });
+      let base = nomeFile(riga, i);
+      const cnt = (usati.get(base.toLowerCase()) || 0) + 1; usati.set(base.toLowerCase(), cnt);
+      if (cnt > 1) base += ` (${cnt})`;
+      try {
+        const blob = creaDoc(dati);
+        if (haPicker) {
+          const nome = await nomeLibero(state.dir, base);
+          const fh = await state.dir.getFileHandle(nome, {create:true});
+          const w = await fh.createWritable(); await w.write(blob); await w.close();
+          creati.push(nome);
+        } else {
+          zipOut.file(base + '.docx', await blob.arrayBuffer());
+          creati.push(base + '.docx');
+        }
+      } catch (e) {
+        if (e && e.properties && e.properties.errors) { throw e; }   // errore del modello: inutile proseguire
+        errori.push(`${base}: ${e.message || e}`);
+      }
+      prog.value = i + 1;
+      if (i % 5 === 0) await new Promise(r => setTimeout(r));
+    }
+    if (!haPicker && creati.length) {
+      const blob = zipOut.generate({type:'blob', compression:'DEFLATE'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'Attestati.zip'; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    }
+    let h = `<div class="msg ok">✔ Fatto! Creati <b>${creati.length}</b> attestati` +
+            (haPicker ? ` nella cartella <b>${esc(state.dir.name)}</b>.` : ' (file Attestati.zip nei Download).') + '</div>';
+    if (errori.length) h += `<div class="msg err">${errori.length} non riusciti:<br>• ${errori.map(esc).join('<br>• ')}</div>`;
+    out.innerHTML = h;
+  } catch (e) {
+    out.innerHTML = `<div class="msg err">${messaggioErrore(e)}</div>`;
+  }
+  prog.hidden = true; btn.disabled = false; aggiornaGo();
+});
+
+setupDrop($('drop1'), $('file1'), caricaModello);
+setupDrop($('drop2'), $('file2'), caricaExcel);
+// evita che un file lasciato fuori dalle aree venga aperto dal browser
+['dragover','drop'].forEach(ev => window.addEventListener(ev, e => e.preventDefault()));
+</script>
+</body>
+</html>
